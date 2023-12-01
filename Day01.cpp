@@ -1,8 +1,7 @@
 #include "Lines.h"
 #include <print>
-#include <algorithm> // std::ranges::find_if
-#include <numeric> // std::views::iota
-#include <ranges> // std::views::transform
+#include <algorithm> // std::ranges::{find_if,find_last_if}
+#include <ranges> // std::views::{iota,transform}
 
 int part1(const char* filename) {
 	return ranges::sum(lines(filename), [&](const std::string_view line) {
