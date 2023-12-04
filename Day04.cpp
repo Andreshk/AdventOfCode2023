@@ -8,8 +8,8 @@
 void day04_1(const char* filename) {
 	const std::vector<std::string> cards{ std::from_range, std::views::as_rvalue(lines(filename)) };
 	std::vector<int> counts(cards.size(), 1);
-	const int part1 = ranges::sum(std::views::enumerate(cards), [&](const std::tuple<ptrdiff_t, std::string_view>& p) {
-		auto&& [idx, line] = p; // No structured bindings for arguments yet :/
+	const int part1 = ranges::sum(std::views::enumerate(cards), [&](const std::tuple<ptrdiff_t, std::string_view> p) {
+		const auto& [idx, line] = p; // No structured bindings for arguments yet :/
 		const auto pos0 = line.find(':') + 2;
 		const auto pos1 = line.find('|');
 		// Parse a single number from the 1 or 2 digits pointed to by it
@@ -24,10 +24,9 @@ void day04_1(const char* filename) {
 			| std::views::keys
 			| std::views::transform(parse)
 			| std::ranges::to<std::vector>();
-		std::vector<int> lucky = parseList(line.substr(pos0, pos1 - pos0 - 1));
-		std::vector<int> mine = parseList(line.substr(pos1 + 2));
-		std::ranges::sort(lucky);
-		const auto matches = std::ranges::count_if(mine, [&](int x) { return std::ranges::binary_search(lucky, x); });
+		const std::vector<int> lucky = parseList(line.substr(pos0, pos1 - pos0));
+		const std::vector<int> mine = parseList(line.substr(pos1 + 2));
+		const auto matches = std::ranges::count_if(mine, [&](int x) { return std::ranges::contains(lucky, x); });
 		for (int i = 1; i <= matches; ++i) {
 			counts[idx + i] += counts[idx];
 		}
