@@ -2,16 +2,16 @@
 #include <fstream>
 #include <string>
 #include <print>
-
-#include <ranges>
+#include <ranges> // std::views::*
 #include <vector>
-#include <algorithm>
+#include <algorithm> // std::ranges::{sort,min}
 
-struct Map {
-	int64_t dest, src, count;
+// Almanac map entry
+struct Entry {
+	int64_t begin, end, off;
 };
 
-std::pair<std::vector<int64_t>, std::array<std::vector<Map>, 7>> parseInput(const char* filename) {
+std::pair<std::vector<int64_t>, std::array<std::vector<Entry>, 7>> parseInput(const char* filename) {
 	std::ifstream file{ filename };
 	std::string line;
 
@@ -20,7 +20,7 @@ std::pair<std::vector<int64_t>, std::array<std::vector<Map>, 7>> parseInput(cons
 		| std::views::transform([&](auto rng) { return scn::scan<int64_t>(rng, "{}")->value(); })
 		| std::ranges::to<std::vector>();
 	std::getline(file, line); // empty line, will be discarded
-	std::array<std::vector<Map>, 7> maps{};
+	std::array<std::vector<Entry>, 7> maps{};
 	for (int i = 0; i < 7; ++i) {
 		std::getline(file, line); // this is text, will be discarded
 		assert(!line.empty() && !std::isdigit(line[0]));
@@ -29,11 +29,11 @@ std::pair<std::vector<int64_t>, std::array<std::vector<Map>, 7>> parseInput(cons
 			if (!file || line.empty()) {
 				break;
 			}
-			Map& m = maps[i].emplace_back();
-			std::tie(m.dest, m.src, m.count) = scn::scan<int64_t, int64_t, int64_t>(line, "{} {} {}")->values();
+			const auto [dest, src, count] = scn::scan<int64_t, int64_t, int64_t>(line, "{} {} {}")->values();
+			maps[i].emplace_back(src, src + count, dest - src); // switch to [begin;end) + offset
 		}
 		// Helps for part2
-		std::ranges::sort(maps[i], std::less<>{}, &Map::src);
+		std::ranges::sort(maps[i], std::less<>{}, &Entry::begin);
 	}
 	return { std::move(seeds), std::move(maps) };
 }
@@ -42,10 +42,10 @@ int64_t day05(const char* filename) {
 	const auto [seeds, maps] = parseInput(filename);
 	auto remap = [&](int64_t idx) {
 		for (const auto& stage : maps) {
-			// to-do: why not lower_bound over the src's?
-			const auto it = std::ranges::find_if(stage, [&](const Map& m) { return (idx >= m.src && idx < m.src + m.count); });
+			// to-do: why not lower_bound over the begin's?
+			const auto it = std::ranges::find_if(stage, [&](const Entry& m) { return (idx >= m.begin && idx < m.end); });
 			if (it != stage.end()) {
-				idx += it->dest - it->src;
+				idx += it->off;
 			}
 		}
 		return idx;
@@ -55,26 +55,25 @@ int64_t day05(const char* filename) {
 
 int64_t day05_2(const char* filename) {
 	const auto [seeds, maps] = parseInput(filename);
-	using Pair = std::pair<int64_t, int64_t>;
+	using Pair = std::pair<int64_t, int64_t>; // [from;to) interval
 	auto remap = [&](Pair p) {
 		std::vector<Pair> currs{ p };
 		for (const auto& stage : maps) {
 			std::vector<Pair> nexts;
 			for (const auto [from, to] : currs) {
-				for (const auto [dest, src, count] : stage) {
-					auto remapSingle = [&](int64_t idx) { return dest + idx - src; };
-					const int64_t from2 = std::max(remapSingle(from), dest);
-					const int64_t to2 = std::min(remapSingle(from + to), dest + count);
-					if (from2 < to2) {
-						nexts.emplace_back(from2, to2 - from2);
+				for (const auto [begin, end, off] : stage) {
+					const int64_t from2 = std::max(from, begin);
+					const int64_t to2 = std::min(to, end);
+					if (from2 < to2) { // If the intersection is valid, offset it & add to the list
+						nexts.emplace_back(from2 + off, to2 + off);
 					}
 				}
-				if (from < stage[0].src) {
-					nexts.emplace_back(from, std::min(to, stage[0].src - from));
+				// Add the unmapped parts of the interval - assumes there are no other gaps (!)
+				if (from < stage[0].begin) {
+					nexts.emplace_back(from, std::min(to, stage[0].begin));
 				}
-				const int64_t last = stage.back().src + stage.back().count;
-				if (from + to > last) {
-					nexts.emplace_back(std::max(from, last), to - std::max(last - from, 0ll));
+				if (to > stage.back().end) {
+					nexts.emplace_back(std::max(from, stage.back().end), to);
 				}
 			}
 			currs = std::move(nexts);
@@ -83,7 +82,7 @@ int64_t day05_2(const char* filename) {
 	};
 	return std::ranges::min(seeds
 		| std::views::chunk(2)
-		| std::views::transform([](auto&& chunk) { return Pair(chunk[0], chunk[1]); })
+		| std::views::transform([](auto&& chunk) { return Pair(chunk[0], chunk[0] + chunk[1]); })
 		| std::views::transform(remap)
 		| std::views::transform([](auto&& v) {
 			return (v.empty() ? INT64_MAX : std::ranges::min(v | std::views::transform(&Pair::first)));
