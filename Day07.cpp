@@ -5,41 +5,20 @@
 #include <ranges> // std::views::{iota,filter,transform}
 #include <algorithm> // std::ranges::{sort,find,lexicographical_compare}
 #include <array>
+#include <utility> // std::exchange
 
-int getType(const std::array<char, 5>& h) {
+int getType(const std::array<char, 5>& h, const bool part2) {
 	std::array<int, 'U'-'2'> counts = {};
 	for (char c : h) { ++counts[c - '2']; }
+	const int jokers = (part2 ? std::exchange(counts['J' - '2'], 0) : 0);
 	std::ranges::sort(counts, std::greater<>{});
+	counts[0] += jokers; // Optimum strategy is to just match the most frequent non-joker card
 	switch (counts[0]) {
 	case 5: return 0;
 	case 4: return 1;
 	case 3: return (counts[1] == 2 ? 2 : 3);
 	case 2: return (counts[1] == 2 ? 4 : 5);
 	default: return 6;
-	}
-}
-
-int getType2(std::array<char, 5> h) {
-	const auto jokers = std::views::iota(0, 5)
-		| std::views::filter([&](int i) { return h[i] == 'J'; })
-		| std::ranges::to<std::vector>();
-
-	std::string_view cs = "AKQT98765432"; // The non-jokers
-	switch (jokers.size()) {
-	case 0: return getType(h);
-	case 1: // Just try every possibility
-		return std::ranges::min(cs | std::views::transform([&](char c) {
-			h[jokers[0]] = c;
-			return getType(h);
-		}));
-	case 2: { // Match with the most frequent non-joker card
-		const int c = std::ranges::count_if(cs, [&](char c) { return std::ranges::contains(h, c); });
-		return (c < 3 ? c - 1 : 3);
-	}
-	case 3: // Four of five of a kind (if the non-jokers match)
-		return (std::ranges::count_if(cs, [&](char c) { return std::ranges::contains(h, c); }) - 1);
-	default: // Enough for a five-of-a-kind
-		return 0;
 	}
 }
 
@@ -71,8 +50,8 @@ void day07(const char* filename) {
 			h[i] = line[i];
 		}
 		bid = scn::scan<int>(line.substr(6), "{}")->value();
-		type1 = getType(h);
-		type2 = getType2(h);
+		type1 = getType(h, false);
+		type2 = getType(h, true);
 	}
 	auto f = [](auto&& p) { auto& [i, h] = p; return (int(i) + 1) * h.bid; };
 	std::ranges::sort(hands, cmp<true>);
