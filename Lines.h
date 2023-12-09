@@ -4,6 +4,8 @@
 #include <string>
 #include <algorithm> // std::ranges::fold_left
 #include <ranges> // std::views::transform
+#include <vector>
+#include <scn/scan.h>
 
 // Used to iterate the lines of a file. Can be iterated as
 //   for (std::string_view line : lines(...)) { ... }
@@ -15,6 +17,17 @@ inline cppcoro::generator<std::string> lines(const char* filename) {
 	while (std::getline(file, line)) {
 		co_yield line;
 	}
+}
+
+template <typename T>
+std::vector<T> scanList(std::string_view str) {
+	std::vector<T> xs;
+	for (std::ranges::subrange rng{str}; !rng.empty();) {
+		auto res = scn::scan<int>(rng, "{}");
+		xs.push_back(res->value());
+		rng = res->range();
+	}
+	return xs;
 }
 
 // not std (!)

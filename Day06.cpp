@@ -8,13 +8,7 @@
 
 std::pair<std::vector<int>, int64_t> parse(std::string_view str) {
 	str.remove_prefix(10);
-	std::vector<int> xs;
-	std::ranges::subrange rng{ str };
-	while (!rng.empty()) {
-		const auto res = scn::scan<int>(rng, "{}");
-		xs.push_back(res->value());
-		rng = res->range();
-	}
+	std::vector<int> xs = scanList<int>(str);
 	const std::string digits = str | std::views::filter(isdigit) | std::ranges::to<std::string>();
 	return { std::move(xs), scn::scan<int64_t>(digits, "{}")->value() };
 }
