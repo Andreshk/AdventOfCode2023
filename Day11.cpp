@@ -1,7 +1,6 @@
 #include "Lines.h"
 #include "IntPairs.h"
 #include <print>
-
 #include <vector>
 #include <ranges> // std::views::{as_rvalue,filter,transform,iota}
 #include <algorithm> // std::ranges::none_of
@@ -34,16 +33,14 @@ void day11(const char* filename, std::initializer_list<int> ages) {
 			| std::views::transform([&](IntPair p) { return p + IntPair{rows[p.i] * (age - 1), cols[p.j] * (age - 1)}; })
 			| std::ranges::to<std::vector>();
 		const int k = int(pos2.size());
-		// This is sum(IntPairs | filter | transform), but it's too much work
-		int64_t sum = 0;
-		for (int i = 0; i < k - 1; ++i) {
-			for (int j = i + 1; j < k; ++j) {
-				const auto& [i1, j1] = pos2[i];
-				const auto& [i2, j2] = pos2[j];
-				sum += (std::abs(i1 - i2) + std::abs(j1 - j2));
+		const int64_t res = ranges::sum(OrderedIntPairs(k),
+			[&](IntPair idx) {
+				const auto& [i1, j1] = pos2[idx.i];
+				const auto& [i2, j2] = pos2[idx.j];
+				return int64_t(std::abs(i1 - i2) + std::abs(j1 - j2));
 			}
-		}
-		std::print("{} ", sum);
+		);
+		std::print("{} ", res);
 	}
 	std::println("");
 }
