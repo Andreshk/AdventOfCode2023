@@ -29,18 +29,22 @@ int64_t matchSimple(const std::string& map, const std::vector<int>& counts) {
 		});
 }
 
+// A compressed tuple of the three ints, identifying the current
+// search state: string length, span length & current run length.
+// Note: if the cache keeps std::pairs of <Item,int64_t>, there'll be
+// padding after each Item, reducing the gain of going below 64 bits.
 struct Item {
-	int spanLen;
-	int strLen;
-	int currLen;
+	int code;
 
+	Item(std::string_view str, std::span<const int> xs, const int currLen)
+		: code{ (int(str.size()) << 16) | (int(xs.size()) << 8) | currLen } {}
 	friend auto operator<=>(const Item&, const Item&) = default;
 };
 
 // If we're currently in a # run, currLen is the length of its processed part (so, always > 0)
 // currLen == 0 means a # run is not yet started
 int64_t match2(std::string_view str, std::span<const int> xs, const int currLen, std::map<Item, int64_t>& cache) {
-	const auto [it, inserted] = cache.insert(std::make_pair(Item{int(xs.size()),int(str.size()),currLen}, 0ll));
+	const auto [it, inserted] = cache.insert(std::make_pair(Item{ str,xs,currLen }, 0ll));
 	if (!inserted) {
 		return it->second;
 	} else if (str.empty()) {
