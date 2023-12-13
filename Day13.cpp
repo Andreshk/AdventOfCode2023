@@ -13,8 +13,9 @@ int checkRefl(const std::vector<std::string>& m, const int mod, const int limit)
 	const int k = int(m.size());
 	return ranges::sum(std::views::iota(1, k)
 		| std::views::filter([&](int row) {
-			return std::ranges::all_of(std::views::iota(0, std::min(row, k - row)),
-				[&](int i) { return countDiffs(m[row + i], m[row - 1 - i]) <= limit; });})
+			const auto rows = std::views::iota(0, std::min(row, k - row));
+			return (limit == ranges::sum(rows, [&](int i) { return countDiffs(m[row + i], m[row - 1 - i]); }));
+		})
 		| std::views::transform([&](int row) { return row * mod; }));
 };
 
@@ -42,7 +43,7 @@ int day13(const char* filename, const int limit) {
 int main13() {
 	std::println("{}", day13("input/13test.txt", 0)); // 405
 	std::println("{}", day13("input/13full.txt", 0)); // 32371
-	std::println("{}", day13("input/13test.txt", 1)); // 805   (part1+part2 total)
-	std::println("{}", day13("input/13full.txt", 1)); // 69787 (part1+part2 total)
+	std::println("{}", day13("input/13test.txt", 1)); // 400
+	std::println("{}", day13("input/13full.txt", 1)); // 37416
 	return 0;
 }
