@@ -30,36 +30,33 @@ int64_t matchSimple(const std::string& map, const std::vector<int>& counts) {
 }
 
 struct Item {
-	// to-do: find a way to keep a hash of the span instead of a copy of all values
-	// and hope collisions don't happen (maybe keep the size, too)
-	// or just compress into ~100 bytes or nibbles
-	std::vector<int> xs;
+	int spanLen;
 	int strLen;
-	bool started;
+	int currLen;
 
 	friend auto operator<=>(const Item&, const Item&) = default;
 };
 
-int64_t match2(std::string_view str, std::span<int> xs, const bool started, std::map<Item, int64_t>& cache) {
-	const auto [it, inserted] = cache.insert(std::make_pair(Item{{std::from_range,xs},int(str.size()),started}, 0ll));
+// If we're currently in a # run, currLen is the length of its processed part (so, always > 0)
+// currLen == 0 means a # run is not yet started
+int64_t match2(std::string_view str, std::span<const int> xs, const int currLen, std::map<Item, int64_t>& cache) {
+	const auto [it, inserted] = cache.insert(std::make_pair(Item{int(xs.size()),int(str.size()),currLen}, 0ll));
 	if (!inserted) {
 		return it->second;
 	} else if (str.empty()) {
-		return (it->second = xs.empty() || (started && xs.size() == 1 && xs[0] == 0));
+		return (it->second = xs.empty() || (xs.size() == 1 && xs[0] == currLen));
 	} else if (xs.empty()) {
 		return (it->second = !str.contains('#'));
 	}
 	int64_t sum = 0;
 	// Next symbol is or can be a dot
-	if (str[0] != '#' && !(started && xs[0] != 0)) {
-		sum += match2(str.substr(1), xs.subspan(started), false, cache);
+	if (str[0] != '#' && !(currLen > 0 && currLen < xs[0])) {
+		sum += match2(str.substr(1), xs.subspan(currLen > 0), 0, cache);
 	}
 	// Next symbol is or can be a hash
-	if (str[0] != '.' && !(started && xs[0] == 0)) {
-		assert(xs[0] > 0);
-		--xs[0];
-		sum += match2(str.substr(1), xs, true, cache);
-		++xs[0];
+	if (str[0] != '.' && !(currLen > 0 && currLen == xs[0])) {
+		assert(currLen < xs[0]);
+		sum += match2(str.substr(1), xs, currLen + 1, cache);
 	}
 	// Cache the total & return
 	return (it->second = sum);
@@ -77,13 +74,13 @@ int64_t day12(const char* filename, const int reps = 1) {
 				counts1 += ',';
 				counts1.append(line, pos + 1); // It's easier to duplicate a string, than a vector :)
 			}
-			auto counts = std::views::split(counts1, ',')
+			const auto counts = std::views::split(counts1, ',')
 				| std::views::transform([](auto&& chunk) { return scn::scan<int>(chunk, "{}")->value(); })
 				| std::ranges::to<std::vector>();
 
 			// return matchSimple(map, counts);
 			std::map<Item, int64_t> cache;
-			return match2(map, counts, false, cache);
+			return match2(map, counts, 0, cache);
 		});
 }
 
