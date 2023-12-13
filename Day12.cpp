@@ -5,7 +5,7 @@
 #include <ranges> // std::views::{filter,transform,iota,chunk_by}
 #include <algorithm> // std::ranges::count_if
 #include <functional> // std::ranges::equal_to
-#include <map>
+#include <unordered_map>
 #include <span>
 #include <cassert>
 
@@ -31,20 +31,19 @@ int64_t matchSimple(const std::string& map, const std::vector<int>& counts) {
 
 // A compressed tuple of the three ints, identifying the current
 // search state: string length, span length & current run length.
-// Note: if the cache keeps std::pairs of <Item,int64_t>, there'll be
-// padding after each Item, reducing the gain of going below 64 bits.
-struct Item {
-	int code;
-
-	Item(std::string_view str, std::span<const int> xs, const int currLen)
-		: code{ (int(str.size()) << 16) | (int(xs.size()) << 8) | currLen } {}
-	friend auto operator<=>(const Item&, const Item&) = default;
-};
+// Note: if the cache keeps std::pairs of <Key,int64_t>, there'll be
+// padding after each Key, reducing the gain of going below 64 bits.
+using Key = int;
+Key makeKey(std::string_view str, std::span<const int> xs, const int currLen) {
+	const auto off1 = CHAR_BIT * sizeof(Key) / 2;
+	const auto off2 = off1 / 2;
+	return (Key(str.size()) << off1) | (Key(xs.size()) << off2) | currLen;;
+}
 
 // If we're currently in a # run, currLen is the length of its processed part (so, always > 0)
 // currLen == 0 means a # run is not yet started
-int64_t match2(std::string_view str, std::span<const int> xs, const int currLen, std::map<Item, int64_t>& cache) {
-	const auto [it, inserted] = cache.insert(std::make_pair(Item{ str,xs,currLen }, 0ll));
+int64_t match2(std::string_view str, std::span<const int> xs, const int currLen, std::unordered_map<Key, int64_t>& cache) {
+	const auto [it, inserted] = cache.insert(std::make_pair(makeKey(str,xs,currLen), 0ll));
 	if (!inserted) {
 		return it->second;
 	} else if (str.empty()) {
@@ -83,15 +82,21 @@ int64_t day12(const char* filename, const int reps = 1) {
 				| std::ranges::to<std::vector>();
 
 			// return matchSimple(map, counts);
-			std::map<Item, int64_t> cache;
+			std::unordered_map<Key, int64_t> cache;
 			return match2(map, counts, 0, cache);
 		});
 }
+
+#include <chrono>
 
 int main12() {
 	std::println("{}", day12("input/12test.txt")); // 21
 	std::println("{}", day12("input/12full.txt")); // 6871
 	std::println("{}", day12("input/12test.txt", 5)); // 525152
-	std::println("{}", day12("input/12full.txt", 5)); // 2043098029844
+
+	const auto start = std::chrono::steady_clock::now();
+	const int64_t res = day12("input/12full.txt", 5); // 2043098029844
+	const auto end = std::chrono::steady_clock::now();
+	std::println("{} ({})", res, std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
 	return 0;
 }
