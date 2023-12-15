@@ -1,5 +1,4 @@
 #include "Lines.h"
-#include <scn/scan.h>
 #include <print>
 #include <vector>
 #include <ranges> // str::views::{transform,split,enumerate}
@@ -36,7 +35,7 @@ int day15_2(const char* filename) {
 		if (*mid == '-') {
 			std::erase_if(bucket, f);
 		} else {
-			const int val = scn::scan<int>(std::ranges::subrange(mid + 1, chunk.end()), "{}")->value();
+			const int val = mid[1] - '0';
 			if (const auto it = std::ranges::find_if(bucket, f); it == bucket.end()) {
 				bucket.emplace_back(label, val);
 			} else {
