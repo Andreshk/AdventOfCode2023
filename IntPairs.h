@@ -10,6 +10,8 @@ struct IntPair {
 	friend auto operator<=>(const IntPair&, const IntPair&) = default;
 	IntPair& operator+=(const IntPair& rhs) { i += rhs.i; j += rhs.j; return *this; }
 	IntPair operator+(const IntPair& rhs) const { return IntPair{ *this } += rhs; }
+	IntPair& operator-=(const IntPair& rhs) { i -= rhs.i; j -= rhs.j; return *this; }
+	IntPair operator-(const IntPair& rhs) const { return IntPair{*this} -= rhs; }
 	IntPair& operator*=(const int k) { i *= k; j *= k; return *this; }
 	IntPair operator*(const int k) const { return IntPair{ *this } *= k; }
 };
