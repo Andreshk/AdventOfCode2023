@@ -52,7 +52,7 @@ auto makeGraph(const char* filename, const bool part1) {
 		}
 		if (neighbs.size() == 1) { // continue current path
 			q.emplace(curr + offs[neighbs[0]], prev, dist + 1, neighbs[0]);
-		} else { // reached a split, should be the first time (see contains(curr) above)
+		} else { // reached a split, should be the first time
 			const int idx = int(idxs.size());
 			const auto [_, inserted] = idxs.insert(std::make_pair(curr, idx));
 			assert(inserted);
@@ -60,6 +60,16 @@ auto makeGraph(const char* filename, const bool part1) {
 			dists[prev].emplace_back(idx, dist);
 			for (const int d : neighbs) {
 				q.emplace(curr + offs[d], idx, 1, d);
+			}
+		}
+	}
+	if (!part1) { // Complete the undirected graph, so that all paths are available
+		const int n = int(dists.size());
+		for (int u = 0; u < n; ++u) {
+			for (const auto& [v, d] : dists[u]) {
+				if (!std::ranges::contains(dists[v], u, &IntPair::i)) {
+					dists[v].emplace_back(u, d);
+				}
 			}
 		}
 	}
@@ -75,7 +85,8 @@ std::vector<int> topoSort(const std::vector<std::vector<IntPair>>& dists) {
 		}
 	}
 	std::queue<int> q;
-	assert(ins[0] == 0 && std::ranges::all_of(std::views::drop(ins, 1), [](int i) { return (i > 0); }));
+	// The only source in this task is vertex 0
+	assert(ins[0] == 0 && !std::ranges::contains(ins | std::views::drop(1), 0));
 	q.emplace(0);
 	std::vector<int> res;
 	std::vector<int> counts(n, 0);
@@ -93,9 +104,8 @@ std::vector<int> topoSort(const std::vector<std::vector<IntPair>>& dists) {
 }
 
 int day23(const char* filename, const bool part1) {
-	auto [dists, goal] = makeGraph(filename, part1);
-	if (part1) {
-		// Sort topologically to find the longest distance
+	const auto [dists, goal] = makeGraph(filename, part1);
+	if (part1) { // Sort topologically to find the longest distance
 		std::vector<int> paths(dists.size(), -1);
 		for (const int u : std::views::reverse(topoSort(dists))) {
 			paths[u] = 0;
@@ -106,15 +116,6 @@ int day23(const char* filename, const bool part1) {
 		}
 		return paths[0];
 	} else {
-		// Just complete the undirected graph
-		const int n = int(dists.size());
-		for (int u = 0; u < n; ++u) {
-			for (const auto& [v, d] : dists[u]) {
-				if (!std::ranges::contains(dists[v], u, &IntPair::i)) {
-					dists[v].emplace_back(u, d);
-				}
-			}
-		}
 		// We'll cache the longest path for each pair of (current vertex, visited set),
 		// compressed in 64 bits. Lowest 6 bits is the index of the current vertex.
 		using Key = uint64_t;
