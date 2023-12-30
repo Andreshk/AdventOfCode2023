@@ -26,16 +26,19 @@ int day17(const char* filename, const int min, const int max) {
 	const int m = int(map[0].size());
 	std::unordered_map<Item, int> visited;
 
-	using Pair = std::pair<int, Item>;
-	auto cmp = [](const Pair& lhs, const Pair& rhs) { return (lhs.first > rhs.first); };
+	// <1> is the distance, <0> is distance+heusristic for A*
+	using Pair = std::tuple<int, int, Item>;
+	auto cmp = [](const Pair& lhs, const Pair& rhs) { return (std::get<0>(lhs) > std::get<0>(rhs)); };
 	std::priority_queue<Pair, std::vector<Pair>, decltype(cmp)> pq;
+	// A* heuristic: just the Manhattan distance to goal
+	auto h = [&](int x, int y) { return n - 1 - x + m - 1 - y; };
 	// Two possible directions from the start
-	pq.emplace(0, Item{0,0,0});
-	pq.emplace(0, Item{0,0,1});
+	pq.emplace(h(0,0), 0, Item{0,0,0});
+	pq.emplace(h(0,0), 0, Item{0,0,1});
 
 	while (!pq.empty()) {
-		const auto [total, item] = pq.top(); pq.pop();
-		const auto [it, inserted] = visited.insert(std::make_pair(item, total));
+		const auto [_, total, item] = pq.top(); pq.pop();
+		const auto [it, inserted] = visited.try_emplace(item, total);
 		if (!inserted) { // Already visited, this is a duplicate due to lack of decreaseKey()
 			assert(it->second <= total);
 			continue;
@@ -52,7 +55,7 @@ int day17(const char* filename, const int min, const int max) {
 				if (newX < 0 || newY < 0 || newX >= n || newY >= m) { break; } // Overstepped
 				newTotal += (map[newX][newY] - '0');
 				if (i >= min) {
-					pq.emplace(newTotal, Item{uint8_t(newX), uint8_t(newY), d}); 
+					pq.emplace(newTotal + h(newX,newY), newTotal, Item{uint8_t(newX), uint8_t(newY), d}); 
 				}
 			}
 		}
