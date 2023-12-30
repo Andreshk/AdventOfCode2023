@@ -8,7 +8,7 @@
 
 struct alignas(int) Item {
 	uint8_t x, y;
-	uint8_t dir, run;
+	uint16_t dir;
 	friend bool operator==(const Item& lhs, const Item& rhs) {
 		return std::bit_cast<int>(lhs) == std::bit_cast<int>(rhs);
 	}
@@ -30,8 +30,8 @@ int day17(const char* filename, const int min, const int max) {
 	auto cmp = [](const Pair& lhs, const Pair& rhs) { return (lhs.first > rhs.first); };
 	std::priority_queue<Pair, std::vector<Pair>, decltype(cmp)> pq;
 	// Two possible directions from the start
-	pq.emplace(0, Item{0,0,0,0});
-	pq.emplace(0, Item{0,0,1,0});
+	pq.emplace(0, Item{0,0,0});
+	pq.emplace(0, Item{0,0,1});
 
 	while (!pq.empty()) {
 		const auto [total, item] = pq.top(); pq.pop();
@@ -40,29 +40,31 @@ int day17(const char* filename, const int min, const int max) {
 			assert(it->second <= total);
 			continue;
 		}
-		if (item.x == n - 1 && item.y == m - 1 && item.run >= min) {
+		if (item.x == n - 1 && item.y == m - 1) {
 			return total;
 		}
 		const int8_t offs[4][2] = {{0,1},{1,0},{0,-1},{-1,0}};
-		for (uint8_t d = 0; d < 4; ++d) {
-			if (std::abs(d - item.dir) == 2) { continue; } // No turning back
-			if (d == item.dir ? item.run == max : item.run < min) { continue; } // Only allowed dir
-			const int newX = item.x + offs[d][0];
-			const int newY = item.y + offs[d][1];
-			if (newX < 0 || newX >= n || newY < 0 || newY >= m) { continue; } // No out-of-bounds
-			const int newTotal = total + map[newX][newY] - '0';
-			const uint8_t newRun = (d == item.dir ? item.run + 1 : 1);
-			pq.emplace(newTotal, Item{uint8_t(newX), uint8_t(newY), d, newRun});
+		for (const uint16_t d : { (item.dir + 1) % 4, (item.dir + 3) % 4 }) {
+			int newTotal = total;
+			for (int i = 1; i <= max; ++i) {
+				const int newX = item.x + i * offs[d][0];
+				const int newY = item.y + i * offs[d][1];
+				if (newX < 0 || newY < 0 || newX >= n || newY >= m) { break; } // Overstepped
+				newTotal += (map[newX][newY] - '0');
+				if (i >= min) {
+					pq.emplace(newTotal, Item{uint8_t(newX), uint8_t(newY), d}); 
+				}
+			}
 		}
 	}
 	std::unreachable();
 }
 
 int main17() {
-	std::println("{}", day17("input/17test.txt", 0, 3));   // 102
+	std::println("{}", day17("input/17test.txt", 1, 3));   // 102
 	std::println("{}", day17("input/17test.txt", 4, 10));  // 94
 	std::println("{}", day17("input/17test2.txt", 4, 10)); // 71
-	std::println("{}", day17("input/17full.txt", 0, 3));   // 1138
+	std::println("{}", day17("input/17full.txt", 1, 3));   // 1138
 	std::println("{}", day17("input/17full.txt", 4, 10));  // 1312
 	return 0;
 }
